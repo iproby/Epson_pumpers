@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Epson Easy Reset — красивый CLI для сброса памперса Epson принтеров.
-Автоматическая настройка, поиск принтеров и интерактивное меню.
-"""
-
+"""Epson Easy Reset CLI: discover printers and reset waste-ink counters."""
 import os
 import sys
 import time
@@ -32,59 +28,45 @@ class C:
     MAGENTA = "\033[95m"
     BLUE = "\033[94m"
     WHITE = "\033[97m"
-    BG_DARK = "\033[48;5;236m"
     GRAY = "\033[90m"
+
+HLINE = "-" * 58
 
 def clr():
     os.system("clear" if os.name != "nt" else "cls")
 
 def banner():
     clr()
-    logo = f"""
-{C.CYAN}{C.BOLD}
-    ╔══════════════════════════════════════════════════════╗
-    ║                                                       ║
-    ║   ███████╗██████╗ ███████╗ ██████╗ ███╗   ██╗        ║
-    ║   ██╔════╝██╔══██╗██╔════╝██╔═══██╗████╗  ██║        ║
-    ║   █████╗  ██████╔╝███████╗██║   ██║██╔██╗ ██║        ║
-    ║   ██╔══╝  ██╔═══╝ ╚════██║██║   ██║██║╚██╗██║        ║
-    ║   ███████╗██║     ███████║╚██████╔╝██║ ╚████║        ║
-    ║   ╚══════╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝        ║
-    ║                                                       ║
-    ║        {C.YELLOW}★  E A S Y   R E S E T  ★{C.CYAN}                  ║
-    ║        {C.DIM}{C.WHITE}Сброс памперса Epson принтеров{C.RST}{C.CYAN}{C.BOLD}             ║
-    ║                                                       ║
-    ╚═══════════════════════════════════════════════════════╝{C.RST}
-"""
-    print(logo)
+    print(C.CYAN + C.BOLD + "\n    EPSON EASY RESET\n" + C.RST)
+    print(C.DIM + "    Waste-ink counter reset for Epson printers\n" + C.RST)
 
 def hline():
-    print(f"{C.GRAY}{'\u2500' * 58}{C.RST}")
+    print(C.GRAY + HLINE + C.RST)
 
 def info(msg):
-    print(f"  {C.CYAN}\u2139{C.RST}  {msg}")
+    print("  [i]  " + msg)
 
 def ok(msg):
-    print(f"  {C.GREEN}\u2714{C.RST}  {msg}")
+    print(C.GREEN + "  [ok] " + C.RST + msg)
 
 def warn(msg):
-    print(f"  {C.YELLOW}\u26a0{C.RST}  {msg}")
+    print(C.YELLOW + "  [!]  " + C.RST + msg)
 
 def err(msg):
-    print(f"  {C.RED}\u2716{C.RST}  {msg}")
+    print(C.RED + "  [x]  " + C.RST + msg)
 
 def step(num, msg):
-    print(f"\n  {C.MAGENTA}{C.BOLD}[{num}]{C.RST} {C.BOLD}{msg}{C.RST}")
+    print("\n  [" + str(num) + "] " + C.BOLD + msg + C.RST)
     hline()
 
 def spinner(msg, stop_event):
-    chars = "\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f"
+    chars = "|/-\\"
     i = 0
     while not stop_event.is_set():
-        print(f"\r  {C.CYAN}{chars[i % len(chars)]}{C.RST}  {msg}", end="", flush=True)
+        print("\r  " + chars[i % len(chars)] + "  " + msg, end="", flush=True)
         i += 1
         time.sleep(0.1)
-    print(f"\r{' ' * (len(msg) + 10)}\r", end="")
+    print("\r" + " " * (len(msg) + 10) + "\r", end="")
 
 def run_with_spinner(msg, func):
     stop = threading.Event()
@@ -97,14 +79,14 @@ def run_with_spinner(msg, func):
         t.join()
     return result
 
-def menu_choice(options, title="\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435"):
-    print(f"\n  {C.BOLD}{C.WHITE}{title}:{C.RST}\n")
+def menu_choice(options, title="Choose an action"):
+    print("\n  " + C.BOLD + title + ":" + C.RST + "\n")
     for idx, (label, _desc) in enumerate(options, 1):
-        print(f"    {C.CYAN}{C.BOLD}{idx}{C.RST}  \u2502  {label}")
-    print(f"    {C.RED}{C.BOLD}0{C.RST}  \u2502  \u0412\u044b\u0445\u043e\u0434\n")
+        print("    " + str(idx) + "  |  " + label)
+    print("    0  |  Exit\n")
     while True:
         try:
-            raw = input(f"  {C.YELLOW}\u25b8{C.RST} \u0412\u0430\u0448 \u0432\u044b\u0431\u043e\u0440: ").strip()
+            raw = input("  > ").strip()
             if raw == "0":
                 return None
             n = int(raw)
@@ -112,11 +94,10 @@ def menu_choice(options, title="\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435
                 return n - 1
         except (ValueError, EOFError):
             pass
-        err("\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u0432\u0432\u043e\u0434, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437")
-
+        err("Invalid input, try again")
 
 def is_valid_printer_host(value):
-    """Return a stripped IPv4/IPv6/hostname, or None if the value is unusable."""
+    """Return a stripped IPv4/IPv6/hostname, or None if unusable."""
     host = (value or "").strip()
     if not host:
         return None
@@ -141,9 +122,7 @@ def is_valid_printer_host(value):
             return None
     return host
 
-
 def _venv_python():
-    """Prefer run.sh's .venv, then legacy venv/, then the current interpreter."""
     candidates = [
         os.path.join(SCRIPT_DIR, ".venv", "bin", "python3"),
         os.path.join(SCRIPT_DIR, ".venv", "bin", "python"),
@@ -158,80 +137,64 @@ def _venv_python():
     return sys.executable
 
 def ensure_deps():
-    step("1", "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0435\u0439")
+    step("1", "Checking dependencies")
     venv_python = _venv_python()
     if venv_python != sys.executable:
-        ok("Virtual environment \u043d\u0430\u0439\u0434\u0435\u043d")
+        ok("Virtual environment found")
     else:
-        warn("venv \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u044e \u0441\u0438\u0441\u0442\u0435\u043c\u043d\u044b\u0439 Python")
-
+        warn("venv not found, trying system Python")
     try:
         from epson_print_conf import EpsonPrinter  # noqa: F401
-        ok("epson_print_conf \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d")
+        ok("epson_print_conf loaded")
         return True
     except ImportError as e:
-        warn(f"\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0438\u043c\u043f\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c: {e}")
-        info("\u0423\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438...")
+        warn("Import failed: " + str(e))
+        info("Installing requirements...")
         req = os.path.join(SCRIPT_DIR, "requirements.txt")
-        ret = subprocess.run(
-            [venv_python, "-m", "pip", "install", "-r", req],
-            cwd=SCRIPT_DIR,
-        )
+        ret = subprocess.run([venv_python, "-m", "pip", "install", "-r", req], cwd=SCRIPT_DIR)
         if ret.returncode == 0:
-            ok("\u0417\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u044b")
+            ok("Dependencies installed")
             return True
-        err("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438")
-        err("\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 \u0432\u0440\u0443\u0447\u043d\u0443\u044e: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt")
+        err("Could not install dependencies")
+        err("Run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt")
         return False
 
 def ensure_printer_db():
-    step("2", "\u0411\u0430\u0437\u0430 \u0434\u0430\u043d\u043d\u044b\u0445 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u043e\u0432")
+    step("2", "Printer database")
     pickle_path = os.path.join(SCRIPT_DIR, "epson_print_conf.pickle")
     devices_xml = os.path.join(SCRIPT_DIR, "devices.xml")
-
     if os.path.exists(pickle_path) and os.path.getsize(pickle_path) > 100:
-        ok("Pickle-\u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044f \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442")
+        ok("Pickle configuration already exists")
         return pickle_path
-
     if not os.path.exists(devices_xml):
-        err("devices.xml \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0432 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0435 \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u044b.")
-        err("\u0421\u043a\u043e\u043f\u0438\u0440\u0443\u0439\u0442\u0435 devices.xml \u0438\u0437 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u044f \u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u0437\u0430\u043f\u0443\u0441\u043a.")
+        err("devices.xml not found. Copy it from the repository and retry.")
         return None
-    ok("devices.xml \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442")
-
-    info("\u0413\u0435\u043d\u0435\u0440\u0438\u0440\u0443\u044e pickle-\u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044e...")
+    ok("devices.xml already exists")
+    info("Generating pickle configuration...")
     py = _venv_python()
     parse_script = os.path.join(SCRIPT_DIR, "parse_devices.py")
-    ret = subprocess.run(
-        [py, parse_script, "-c", devices_xml, "-p", pickle_path],
-        cwd=SCRIPT_DIR,
-    )
+    ret = subprocess.run([py, parse_script, "-c", devices_xml, "-p", pickle_path], cwd=SCRIPT_DIR)
     if ret.returncode == 0 and os.path.exists(pickle_path):
-        ok("\u041a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044f \u0441\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u043e\u0432\u0430\u043d\u0430")
+        ok("Configuration generated")
         return pickle_path
-    err("\u041e\u0448\u0438\u0431\u043a\u0430 \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u0438 pickle")
+    err("Pickle generation failed")
     return None
 
 def find_printers_network():
     try:
         from find_printers import PrinterScanner
         scanner = PrinterScanner()
-        printers = run_with_spinner("\u0421\u043a\u0430\u043d\u0438\u0440\u0443\u044e \u0441\u0435\u0442\u044c...", scanner.get_all_printers)
-        return printers or []
+        return run_with_spinner("Scanning network...", scanner.get_all_printers) or []
     except Exception as e:
-        warn(f"\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u043a\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f: {e}")
+        warn("Scan error: " + str(e))
         return []
 
 def find_printers_usb():
     usb_printers = []
     try:
-        result = subprocess.run(
-            ["system_profiler", "SPUSBDataType"],
-            capture_output=True, text=True, timeout=10
-        )
-        lines = result.stdout.split("\n")
+        result = subprocess.run(["system_profiler", "SPUSBDataType"], capture_output=True, text=True, timeout=10)
         current = None
-        for line in lines:
+        for line in result.stdout.split("\n"):
             stripped = line.strip()
             if "epson" in stripped.lower() and ":" in stripped:
                 current = {"name": stripped.rstrip(":").strip(), "type": "USB"}
@@ -248,19 +211,17 @@ def find_printers_usb():
     return usb_printers
 
 def discover_printers():
-    step("3", "\u041f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u043e\u0432")
+    step("3", "Looking for printers")
     all_printers = []
-    info("\u041f\u043e\u0438\u0441\u043a USB-\u043f\u0440\u0438\u043d\u0442\u0435\u0440\u043e\u0432...")
-    usb = find_printers_usb()
-    for p in usb:
-        ok(f"USB: {p['name']}")
+    info("USB printers...")
+    for p in find_printers_usb():
+        ok("USB: " + p["name"])
         all_printers.append({"source": "USB", "name": p["name"], "ip": None})
-    info("\u041f\u043e\u0438\u0441\u043a \u0441\u0435\u0442\u0435\u0432\u044b\u0445 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u043e\u0432 (\u043c\u043e\u0436\u0435\u0442 \u0437\u0430\u043d\u044f\u0442\u044c ~30 \u0441\u0435\u043a)...")
-    net = find_printers_network()
-    for p in net:
+    info("Network printers (may take ~30s)...")
+    for p in find_printers_network():
         name = p.get("name", "Unknown")
         ip = p.get("ip", "?")
-        ok(f"\u0421\u0435\u0442\u044c: {name} ({ip})")
+        ok("Network: " + str(name) + " (" + str(ip) + ")")
         all_printers.append({"source": "Network", "name": name, "ip": ip})
     return all_printers
 
@@ -269,147 +230,129 @@ def get_available_actions(printer):
     parm = printer.parm
     if not parm:
         return actions
-    actions.append(("\U0001f4ca  \u041f\u043e\u043b\u043d\u044b\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430", "stats"))
+    actions.append(("Full printer status", "stats"))
     if "main_waste" in parm:
-        actions.append(("\U0001f50d  \u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0443\u0440\u043e\u0432\u0435\u043d\u044c \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430 (waste ink)", "show_waste"))
+        actions.append(("Show waste ink level", "show_waste"))
     if "raw_waste_reset" in parm or "main_waste" in parm:
-        actions.append((f"{C.GREEN}\u267b\ufe0f   \u0421\u0431\u0440\u043e\u0441 \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430 (\u041f\u041e\u0421\u0422\u041e\u042f\u041d\u041d\u042b\u0419){C.RST}", "reset_waste"))
-    actions.append(("\U0001f504  \u0412\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 \u0441\u0431\u0440\u043e\u0441 \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430", "temp_reset"))
+        actions.append(("PERMANENT waste-ink reset", "reset_waste"))
+    actions.append(("Temporary waste-ink reset", "temp_reset"))
     if "serial_number" in parm:
-        actions.append(("\U0001f522  \u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0441\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440", "serial"))
+        actions.append(("Show serial number", "serial"))
     if "stats" in parm:
-        actions.append(("\U0001f4c8  \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430", "show_stats"))
-    actions.append(("\U0001f5a8\ufe0f   \u0422\u0435\u0441\u0442 \u0434\u044e\u0437 (\u043f\u0435\u0447\u0430\u0442\u044c)", "nozzle_check"))
-    actions.append(("\U0001f9f9  \u041f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0430 \u0433\u043e\u043b\u043e\u0432\u043a\u0438", "clean"))
-    actions.append(("\U0001f4aa  \u0423\u0441\u0438\u043b\u0435\u043d\u043d\u0430\u044f \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0430", "power_clean"))
-    actions.append(("\U0001f310  \u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0432\u0435\u0431-\u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441", "web"))
+        actions.append(("Printer statistics", "show_stats"))
+    actions.append(("Nozzle check print", "nozzle_check"))
+    actions.append(("Head cleaning", "clean"))
+    actions.append(("Power cleaning", "power_clean"))
+    actions.append(("Open web interface", "web"))
     return actions
 
 def execute_action(printer, action_id, model_name):
     hline()
     try:
         if action_id == "stats":
-            info("\u041f\u043e\u043b\u0443\u0447\u0430\u044e \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044e \u043e \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0435...")
             import pprint
-            data = run_with_spinner("\u0417\u0430\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e \u0434\u0430\u043d\u043d\u044b\u0435...", printer.stats)
+            data = run_with_spinner("Requesting data...", printer.stats)
             if data:
                 print()
                 pprint.pprint(data, width=100, compact=True)
             else:
-                warn("\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445. \u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435.")
+                warn("No data. Check the connection.")
         elif action_id == "show_waste":
-            info("\u0427\u0442\u0435\u043d\u0438\u0435 \u0443\u0440\u043e\u0432\u043d\u044f \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430...")
-            levels = run_with_spinner("\u0417\u0430\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e...", printer.get_waste_ink_levels)
+            levels = run_with_spinner("Requesting...", printer.get_waste_ink_levels)
             if levels:
                 print()
                 for key, val in levels.items():
-                    label = key.replace("_", " ").title()
-                    bar_len = min(int(val / 2), 50)
-                    color = C.GREEN if val < 50 else C.YELLOW if val < 80 else C.RED
-                    bar = f"{color}{'\u2588' * bar_len}{C.GRAY}{'\u2591' * (50 - bar_len)}{C.RST}"
-                    print(f"    {label:.<30s} [{bar}] {color}{val}%{C.RST}")
+                    print("    " + key.replace("_", " ").title() + ": " + str(val) + "%")
                 print()
             else:
-                warn("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0443\u0440\u043e\u0432\u0435\u043d\u044c \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430.")
+                warn("Could not read waste ink level.")
         elif action_id == "reset_waste":
-            warn(f"{C.BOLD}\u0412\u041d\u0418\u041c\u0410\u041d\u0418\u0415! \u042d\u0442\u043e \u041f\u041e\u0421\u0422\u041e\u042f\u041d\u041d\u042b\u0419 \u0441\u0431\u0440\u043e\u0441 \u0441\u0447\u0451\u0442\u0447\u0438\u043a\u0430 \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430!{C.RST}")
-            warn("\u0424\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u0438 \u043f\u0430\u043c\u043f\u0435\u0440\u0441 (\u0430\u0431\u0441\u043e\u0440\u0431\u0435\u0440) \u0442\u043e\u0436\u0435 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u043c\u044b\u0442\u044c \u0438\u043b\u0438 \u0437\u0430\u043c\u0435\u043d\u0438\u0442\u044c!")
-            print()
-            confirm = input(f"  {C.RED}\u25b8{C.RST} \u0412\u044b \u0443\u0432\u0435\u0440\u0435\u043d\u044b? (\u0434\u0430/\u043d\u0435\u0442): ").strip().lower()
-            if confirm in ("\u0434\u0430", "yes", "y", "\u0434"):
-                info("\u0421\u0431\u0440\u0430\u0441\u044b\u0432\u0430\u044e \u0441\u0447\u0451\u0442\u0447\u0438\u043a \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430...")
-                result = run_with_spinner("\u0417\u0430\u043f\u0438\u0441\u044b\u0432\u0430\u044e \u0432 EEPROM...", printer.reset_waste_ink_levels)
+            warn("PERMANENT waste-ink counter reset!")
+            warn("Also rinse or replace the physical absorber.")
+            confirm = input("  Are you sure? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
+                result = run_with_spinner("Writing EEPROM...", printer.reset_waste_ink_levels)
                 if result:
-                    ok(f"{C.GREEN}{C.BOLD}\u0421\u0447\u0451\u0442\u0447\u0438\u043a \u043f\u0430\u043c\u043f\u0435\u0440\u0441\u0430 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0441\u0431\u0440\u043e\u0448\u0435\u043d!{C.RST}")
-                    ok("\u041f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u043f\u0440\u0438\u043d\u0442\u0435\u0440 \u0434\u043b\u044f \u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0439.")
+                    ok("Waste-ink counter reset. Reboot the printer.")
                 else:
-                    err("\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0431\u0440\u043e\u0441\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0438 \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044e.")
+                    err("Reset failed. Check connection and configuration.")
             else:
-                info("\u041e\u043f\u0435\u0440\u0430\u0446\u0438\u044f \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u0430.")
+                info("Cancelled.")
         elif action_id == "temp_reset":
-            info("\u0412\u044b\u043f\u043e\u043b\u043d\u044f\u044e \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 \u0441\u0431\u0440\u043e\u0441...")
-            result = run_with_spinner("\u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u044e \u043a\u043e\u043c\u0430\u043d\u0434\u0443...", printer.temporary_reset_waste)
+            result = run_with_spinner("Sending command...", printer.temporary_reset_waste)
             if result:
-                ok("\u0412\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 \u0441\u0431\u0440\u043e\u0441 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!")
-                warn("\u0421\u0431\u0440\u043e\u0441 \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u0434\u043e \u043f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430.")
+                ok("Temporary reset done (until reboot).")
             else:
-                err("\u041e\u0448\u0438\u0431\u043a\u0430 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u0441\u0431\u0440\u043e\u0441\u0430.")
+                err("Temporary reset failed.")
         elif action_id == "serial":
-            info("\u0427\u0442\u0435\u043d\u0438\u0435 \u0441\u0435\u0440\u0438\u0439\u043d\u043e\u0433\u043e \u043d\u043e\u043c\u0435\u0440\u0430...")
-            sn = run_with_spinner("\u0417\u0430\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e...", printer.get_serial_number)
+            sn = run_with_spinner("Requesting...", printer.get_serial_number)
             if sn:
-                ok(f"\u0421\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440: {C.BOLD}{C.WHITE}{sn}{C.RST}")
+                ok("Serial number: " + str(sn))
             else:
-                warn("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0441\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440.")
+                warn("Could not read serial number.")
         elif action_id == "show_stats":
-            info("\u0427\u0442\u0435\u043d\u0438\u0435 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0438...")
-            data = run_with_spinner("\u0417\u0430\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e...", lambda: printer.get_stats())
+            data = run_with_spinner("Requesting...", lambda: printer.get_stats())
             if data:
                 print()
                 for key, val in data.items():
-                    print(f"    {C.CYAN}{key}{C.RST}: {val}")
+                    print("    " + str(key) + ": " + str(val))
                 print()
             else:
-                warn("\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430.")
+                warn("Statistics unavailable.")
         elif action_id == "nozzle_check":
-            info("\u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u044e \u0442\u0435\u0441\u0442 \u0434\u044e\u0437 \u043d\u0430 \u043f\u0435\u0447\u0430\u0442\u044c...")
             result = printer.print_check_nozzles(type=0)
             if result:
-                ok("\u0422\u0435\u0441\u0442 \u0434\u044e\u0437 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d \u043d\u0430 \u043f\u0435\u0447\u0430\u0442\u044c.")
+                ok("Nozzle check sent to printer.")
             else:
-                err("\u041e\u0448\u0438\u0431\u043a\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0438 \u0442\u0435\u0441\u0442\u0430 \u0434\u044e\u0437.")
+                err("Failed to send nozzle check.")
         elif action_id == "clean":
-            confirm = input(f"  {C.YELLOW}\u25b8{C.RST} \u041d\u0430\u0447\u0430\u0442\u044c \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0443? (\u0434\u0430/\u043d\u0435\u0442): ").strip().lower()
-            if confirm in ("\u0434\u0430", "yes", "y", "\u0434"):
-                info("\u0417\u0430\u043f\u0443\u0441\u043a\u0430\u044e \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0443...")
+            confirm = input("  Start cleaning? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
                 try:
                     result = printer.clean_nozzles(0)
                     if result:
-                        ok("\u041f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0430 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u0430.")
+                        ok("Cleaning started.")
                     else:
-                        err("\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0438.")
+                        err("Cleaning failed.")
                 except Exception as e:
-                    err(f"\u041e\u0448\u0438\u0431\u043a\u0430: {e}")
+                    err(str(e))
             else:
-                info("\u041e\u0442\u043c\u0435\u043d\u0435\u043d\u043e.")
+                info("Cancelled.")
         elif action_id == "power_clean":
-            warn("\u0423\u0441\u0438\u043b\u0435\u043d\u043d\u0430\u044f \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0430 \u0440\u0430\u0441\u0445\u043e\u0434\u0443\u0435\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u0447\u0435\u0440\u043d\u0438\u043b!")
-            confirm = input(f"  {C.YELLOW}\u25b8{C.RST} \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c? (\u0434\u0430/\u043d\u0435\u0442): ").strip().lower()
-            if confirm in ("\u0434\u0430", "yes", "y", "\u0434"):
-                info("\u0417\u0430\u043f\u0443\u0441\u043a\u0430\u044e \u0443\u0441\u0438\u043b\u0435\u043d\u043d\u0443\u044e \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0443...")
+            warn("Power cleaning uses more ink.")
+            confirm = input("  Continue? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
                 try:
                     result = printer.clean_nozzles(1)
                     if result:
-                        ok("\u0423\u0441\u0438\u043b\u0435\u043d\u043d\u0430\u044f \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0430 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u0430.")
+                        ok("Power cleaning started.")
                     else:
-                        err("\u041e\u0448\u0438\u0431\u043a\u0430 \u0443\u0441\u0438\u043b\u0435\u043d\u043d\u043e\u0439 \u043f\u0440\u043e\u0447\u0438\u0441\u0442\u043a\u0438.")
+                        err("Power cleaning failed.")
                 except Exception as e:
-                    err(f"\u041e\u0448\u0438\u0431\u043a\u0430: {e}")
+                    err(str(e))
             else:
-                info("\u041e\u0442\u043c\u0435\u043d\u0435\u043d\u043e.")
+                info("Cancelled.")
         elif action_id == "web":
             try:
-                ip = printer.hostname
-                host = is_valid_printer_host(ip) if ip else None
+                host = is_valid_printer_host(printer.hostname) if printer.hostname else None
                 if host:
-                    webbrowser.open(f"http://{host}")
-                    ok(f"\u041e\u0442\u043a\u0440\u044b\u0432\u0430\u044e http://{host} \u0432 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435...")
+                    webbrowser.open("http://" + host)
+                    ok("Opening http://" + host)
                 else:
-                    err("IP-\u0430\u0434\u0440\u0435\u0441 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430 \u043d\u0435 \u0437\u0430\u0434\u0430\u043d.")
+                    err("Printer address is not set.")
             except Exception:
-                err("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043a\u0440\u044b\u0442\u044c \u0431\u0440\u0430\u0443\u0437\u0435\u0440.")
+                err("Could not open the browser.")
     except TimeoutError:
-        err("\u0422\u0430\u0439\u043c\u0430\u0443\u0442 \u043f\u0440\u0438 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0438 \u043a \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0443.")
+        err("Timeout talking to the printer.")
     except Exception as e:
-        err(f"\u041e\u0448\u0438\u0431\u043a\u0430: {e}")
+        err(str(e))
     print()
-    input(f"  {C.GRAY}\u041d\u0430\u0436\u043c\u0438\u0442\u0435 Enter \u0434\u043b\u044f \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0435\u043d\u0438\u044f...{C.RST}")
+    input("  Press Enter to continue...")
 
 def _ask_printer_host(prompt):
-    raw = input(prompt).strip()
-    host = is_valid_printer_host(raw)
+    host = is_valid_printer_host(input(prompt).strip())
     if not host:
-        err("\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 IP-\u0430\u0434\u0440\u0435\u0441 \u0438\u043b\u0438 \u0438\u043c\u044f \u0445\u043e\u0441\u0442\u0430.")
+        err("Invalid IP address or hostname.")
         return None
     return host
 
@@ -424,61 +367,59 @@ def main():
         try:
             with open(pickle_path, "rb") as f:
                 conf_dict = pickle.load(f)
-            ok(f"\u0417\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u043e \u043c\u043e\u0434\u0435\u043b\u0435\u0439: {len(conf_dict)}")
+            ok("Loaded models: " + str(len(conf_dict)))
         except Exception as e:
-            warn(f"\u041e\u0448\u0438\u0431\u043a\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0438 pickle: {e}")
-    step("3", "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0443")
+            warn("Pickle load error: " + str(e))
+    step("3", "Connect to printer")
     print()
     connect_opts = [
-        ("\U0001f50d  \u0410\u0432\u0442\u043e\u043f\u043e\u0438\u0441\u043a \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u043e\u0432 \u0432 \u0441\u0435\u0442\u0438 \u0438 USB", "auto"),
-        ("\U0001f4dd  \u0412\u0432\u0435\u0441\u0442\u0438 IP-\u0430\u0434\u0440\u0435\u0441 \u0432\u0440\u0443\u0447\u043d\u0443\u044e", "manual"),
+        ("Auto-discover printers on network and USB", "auto"),
+        ("Enter IP address manually", "manual"),
     ]
-    choice = menu_choice(connect_opts, "\u041a\u0430\u043a \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f \u043a \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0443?")
+    choice = menu_choice(connect_opts, "How to connect?")
     if choice is None:
-        print(f"\n  {C.CYAN}\u0414\u043e \u0441\u0432\u0438\u0434\u0430\u043d\u0438\u044f!{C.RST}\n")
+        print("\n  Goodbye.\n")
         sys.exit(0)
     target_ip = None
     model_name = None
     if connect_opts[choice][1] == "auto":
         found = discover_printers()
         if not found:
-            warn("\u041f\u0440\u0438\u043d\u0442\u0435\u0440\u044b \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438.")
-            print()
-            target_ip = _ask_printer_host(f"  {C.YELLOW}\u25b8{C.RST} \u0412\u0432\u0435\u0434\u0438\u0442\u0435 IP-\u0430\u0434\u0440\u0435\u0441 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430: ")
+            warn("No printers found automatically.")
+            target_ip = _ask_printer_host("  Printer IP: ")
         elif len(found) == 1 and found[0]["ip"]:
             target_ip = found[0]["ip"]
             model_name = found[0].get("name")
-            ok(f"\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u043c: {model_name} ({target_ip})")
+            ok("Using: " + str(model_name) + " (" + str(target_ip) + ")")
         else:
             net_printers = [p for p in found if p["ip"]]
             if not net_printers:
-                warn("\u041d\u0430\u0439\u0434\u0435\u043d\u044b \u0442\u043e\u043b\u044c\u043a\u043e USB-\u043f\u0440\u0438\u043d\u0442\u0435\u0440\u044b. \u041f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0430 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0447\u0435\u0440\u0435\u0437 \u0441\u0435\u0442\u044c.")
-                target_ip = _ask_printer_host(f"  {C.YELLOW}\u25b8{C.RST} \u0412\u0432\u0435\u0434\u0438\u0442\u0435 IP-\u0430\u0434\u0440\u0435\u0441 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430: ")
+                warn("Only USB printers found. This tool talks over the network.")
+                target_ip = _ask_printer_host("  Printer IP: ")
             else:
-                opts = [(f"{p['name']} ({p['ip']})", p) for p in net_printers]
-                idx = menu_choice(opts, "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043f\u0440\u0438\u043d\u0442\u0435\u0440")
+                opts = [(str(p["name"]) + " (" + str(p["ip"]) + ")", p) for p in net_printers]
+                idx = menu_choice(opts, "Select a printer")
                 if idx is None:
                     sys.exit(0)
                 target_ip = net_printers[idx]["ip"]
                 model_name = net_printers[idx].get("name")
     else:
-        target_ip = _ask_printer_host(f"\n  {C.YELLOW}\u25b8{C.RST} IP-\u0430\u0434\u0440\u0435\u0441 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430: ")
+        target_ip = _ask_printer_host("\n  Printer IP: ")
     if not target_ip:
-        err("IP-\u0430\u0434\u0440\u0435\u0441 \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d.")
+        err("IP address not provided.")
         sys.exit(1)
     target_ip = is_valid_printer_host(target_ip)
     if not target_ip:
-        err("\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 IP-\u0430\u0434\u0440\u0435\u0441 \u0438\u043b\u0438 \u0438\u043c\u044f \u0445\u043e\u0441\u0442\u0430.")
+        err("Invalid IP address or hostname.")
         sys.exit(1)
-    step("4", "\u041e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0438\u0435 \u043c\u043e\u0434\u0435\u043b\u0438 \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430")
-    info(f"\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u044e\u0441\u044c \u043a {target_ip}...")
+    step("4", "Detect printer model")
+    info("Connecting to " + target_ip + "...")
     temp_printer = EpsonPrinter(conf_dict=conf_dict, hostname=target_ip)
     try:
-        snmp_info = run_with_spinner("\u0417\u0430\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u044e \u043c\u043e\u0434\u0435\u043b\u044c...",
-            lambda: temp_printer.get_snmp_info("Model"))
+        snmp_info = run_with_spinner("Requesting model...", lambda: temp_printer.get_snmp_info("Model"))
         if snmp_info and "Model" in snmp_info:
             detected = snmp_info["Model"]
-            ok(f"\u041e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u0430 \u043c\u043e\u0434\u0435\u043b\u044c: {C.BOLD}{C.WHITE}{detected}{C.RST}")
+            ok("Detected model: " + str(detected))
             for m in temp_printer.valid_printers:
                 if m.lower() in detected.lower() or detected.lower().replace(" series", "").strip() in m.lower():
                     model_name = m
@@ -493,57 +434,50 @@ def main():
                     if model_name:
                         break
     except Exception as e:
-        warn(f"\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442\u044c \u043c\u043e\u0434\u0435\u043b\u044c \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438: {e}")
+        warn("Could not auto-detect model: " + str(e))
     if not model_name:
-        warn("\u041c\u043e\u0434\u0435\u043b\u044c \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438.")
-        print()
-        info("\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043c\u043e\u0434\u0435\u043b\u0438:")
+        warn("Model not auto-detected.")
         valid = sorted(temp_printer.valid_printers)
         cols = 4
         for i in range(0, len(valid), cols):
-            row = valid[i:i+cols]
-            print("    " + "  ".join(f"{C.CYAN}{m:<20s}{C.RST}" for m in row))
-        print()
-        model_name = input(f"  {C.YELLOW}\u25b8{C.RST} \u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043c\u043e\u0434\u0435\u043b\u044c \u043f\u0440\u0438\u043d\u0442\u0435\u0440\u0430: ").strip()
+            print("    " + "  ".join("{:<20s}".format(m) for m in valid[i:i + cols]))
+        model_name = input("  Printer model: ").strip()
     if not model_name:
-        err("\u041c\u043e\u0434\u0435\u043b\u044c \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0430.")
+        err("Model not provided.")
         sys.exit(1)
-    step("5", f"\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a {model_name}")
+    step("5", "Connecting to " + model_name)
     printer = EpsonPrinter(conf_dict=conf_dict, model=model_name, hostname=target_ip)
     if not printer.parm:
-        err(f"\u041c\u043e\u0434\u0435\u043b\u044c '{model_name}' \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430 \u0432 \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438.")
-        err("\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0434\u0440\u0443\u0433\u043e\u0435 \u0438\u043c\u044f \u043c\u043e\u0434\u0435\u043b\u0438.")
+        err("Model '" + model_name + "' not found in configuration.")
         sys.exit(1)
-    ok(f"\u041f\u0440\u0438\u043d\u0442\u0435\u0440: {C.BOLD}{model_name}{C.RST}")
-    ok(f"\u0410\u0434\u0440\u0435\u0441:   {C.BOLD}{target_ip}{C.RST}")
+    ok("Printer: " + model_name)
+    ok("Address: " + target_ip)
     try:
-        sn = run_with_spinner("\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u044e \u0441\u0432\u044f\u0437\u044c...", printer.get_serial_number)
+        sn = run_with_spinner("Checking link...", printer.get_serial_number)
         if sn:
-            ok(f"\u0421\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440: {C.BOLD}{sn}{C.RST}")
-            ok(f"{C.GREEN}\u0421\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e!{C.RST}")
+            ok("Serial number: " + str(sn))
+            ok("Connection established.")
         else:
-            warn("\u0421\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d, \u043d\u043e \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0435\u043c \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c.")
+            warn("Serial number not returned; continuing anyway.")
     except Exception:
-        warn("\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0441\u0432\u044f\u0437\u0438 \u043d\u0435 \u0443\u0434\u0430\u043b\u0430\u0441\u044c, \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0435\u043c \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c.")
+        warn("Link check failed; continuing anyway.")
     while True:
         banner()
-        print(f"  {C.BOLD}\u041f\u0440\u0438\u043d\u0442\u0435\u0440:{C.RST} {C.CYAN}{model_name}{C.RST}  \u2502  {C.BOLD}IP:{C.RST} {C.CYAN}{target_ip}{C.RST}")
+        print("  Printer: " + model_name + "  |  IP: " + target_ip)
         hline()
         actions = get_available_actions(printer)
         if not actions:
-            err("\u041d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0445 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439 \u0434\u043b\u044f \u044d\u0442\u043e\u0439 \u043c\u043e\u0434\u0435\u043b\u0438.")
+            err("No operations available for this model.")
             break
-        idx = menu_choice(actions, "\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438")
+        idx = menu_choice(actions, "Available operations")
         if idx is None:
-            print(f"\n  {C.CYAN}\u0414\u043e \u0441\u0432\u0438\u0434\u0430\u043d\u0438\u044f! \U0001f44b{C.RST}\n")
+            print("\n  Goodbye.\n")
             break
-        action_id = actions[idx][1]
-        execute_action(printer, action_id, model_name)
-
+        execute_action(printer, actions[idx][1], model_name)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n\n  {C.CYAN}\u041f\u0440\u0435\u0440\u0432\u0430\u043d\u043e \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u043c. \u0414\u043e \u0441\u0432\u0438\u0434\u0430\u043d\u0438\u044f!{C.RST}\n")
+        print("\n\n  Interrupted. Goodbye.\n")
         sys.exit(0)
