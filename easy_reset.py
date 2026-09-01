@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Epson Easy Reset — красивый CLI для сброса памперса Epson принтеров.
-Автоматическая настройка, поиск принтеров и интерактивное меню.
-"""
-
+"""Epson Easy Reset CLI: discover printers and reset waste-ink counters."""
 import os
 import sys
 import time
 import pickle
-import socket
+import ipaddress
 import subprocess
 import threading
 import warnings
-import textwrap
+import webbrowser
 
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -21,7 +17,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
-# ─── Цвета и стили ───────────────────────────────────────────────────────────
 class C:
     RST = "\033[0m"
     BOLD = "\033[1m"
@@ -33,59 +28,45 @@ class C:
     MAGENTA = "\033[95m"
     BLUE = "\033[94m"
     WHITE = "\033[97m"
-    BG_DARK = "\033[48;5;236m"
     GRAY = "\033[90m"
+
+HLINE = "-" * 58
 
 def clr():
     os.system("clear" if os.name != "nt" else "cls")
 
 def banner():
     clr()
-    logo = f"""
-{C.CYAN}{C.BOLD}
-    ╔═══════════════════════════════════════════════════════╗
-    ║                                                       ║
-    ║   ███████╗██████╗ ███████╗ ██████╗ ███╗   ██╗        ║
-    ║   ██╔════╝██╔══██╗██╔════╝██╔═══██╗████╗  ██║        ║
-    ║   █████╗  ██████╔╝███████╗██║   ██║██╔██╗ ██║        ║
-    ║   ██╔══╝  ██╔═══╝ ╚════██║██║   ██║██║╚██╗██║        ║
-    ║   ███████╗██║     ███████║╚██████╔╝██║ ╚████║        ║
-    ║   ╚══════╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝        ║
-    ║                                                       ║
-    ║        {C.YELLOW}★  E A S Y   R E S E T  ★{C.CYAN}                  ║
-    ║        {C.DIM}{C.WHITE}Сброс памперса Epson принтеров{C.RST}{C.CYAN}{C.BOLD}             ║
-    ║                                                       ║
-    ╚═══════════════════════════════════════════════════════╝{C.RST}
-"""
-    print(logo)
+    print(C.CYAN + C.BOLD + "\n    EPSON EASY RESET\n" + C.RST)
+    print(C.DIM + "    Waste-ink counter reset for Epson printers\n" + C.RST)
 
 def hline():
-    print(f"{C.GRAY}{'─' * 58}{C.RST}")
+    print(C.GRAY + HLINE + C.RST)
 
 def info(msg):
-    print(f"  {C.CYAN}ℹ{C.RST}  {msg}")
+    print("  [i]  " + msg)
 
 def ok(msg):
-    print(f"  {C.GREEN}✔{C.RST}  {msg}")
+    print(C.GREEN + "  [ok] " + C.RST + msg)
 
 def warn(msg):
-    print(f"  {C.YELLOW}⚠{C.RST}  {msg}")
+    print(C.YELLOW + "  [!]  " + C.RST + msg)
 
 def err(msg):
-    print(f"  {C.RED}✖{C.RST}  {msg}")
+    print(C.RED + "  [x]  " + C.RST + msg)
 
 def step(num, msg):
-    print(f"\n  {C.MAGENTA}{C.BOLD}[{num}]{C.RST} {C.BOLD}{msg}{C.RST}")
+    print("\n  [" + str(num) + "] " + C.BOLD + msg + C.RST)
     hline()
 
 def spinner(msg, stop_event):
-    chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    chars = "|/-\\"
     i = 0
     while not stop_event.is_set():
-        print(f"\r  {C.CYAN}{chars[i % len(chars)]}{C.RST}  {msg}", end="", flush=True)
+        print("\r  " + chars[i % len(chars)] + "  " + msg, end="", flush=True)
         i += 1
         time.sleep(0.1)
-    print(f"\r{' ' * (len(msg) + 10)}\r", end="")
+    print("\r" + " " * (len(msg) + 10) + "\r", end="")
 
 def run_with_spinner(msg, func):
     stop = threading.Event()
@@ -98,14 +79,14 @@ def run_with_spinner(msg, func):
         t.join()
     return result
 
-def menu_choice(options, title="Выберите действие"):
-    print(f"\n  {C.BOLD}{C.WHITE}{title}:{C.RST}\n")
+def menu_choice(options, title="Choose an action"):
+    print("\n  " + C.BOLD + title + ":" + C.RST + "\n")
     for idx, (label, _desc) in enumerate(options, 1):
-        print(f"    {C.CYAN}{C.BOLD}{idx}{C.RST}  │  {label}")
-    print(f"    {C.RED}{C.BOLD}0{C.RST}  │  Выход\n")
+        print("    " + str(idx) + "  |  " + label)
+    print("    0  |  Exit\n")
     while True:
         try:
-            raw = input(f"  {C.YELLOW}▸{C.RST} Ваш выбор: ").strip()
+            raw = input("  > ").strip()
             if raw == "0":
                 return None
             n = int(raw)
@@ -113,89 +94,107 @@ def menu_choice(options, title="Выберите действие"):
                 return n - 1
         except (ValueError, EOFError):
             pass
-        err("Неверный ввод, попробуйте ещё раз")
+        err("Invalid input, try again")
 
-# ─── Автоустановка зависимостей ──────────────────────────────────────────────
-def ensure_deps():
-    step("1", "Проверка зависимостей")
-    venv_python = os.path.join(SCRIPT_DIR, "venv", "bin", "python3")
-    if os.path.exists(venv_python):
-        ok("Virtual environment найден")
-    else:
-        warn("venv не найден, попробую системный Python")
-        venv_python = sys.executable
-
+def is_valid_printer_host(value):
+    """Return a stripped IPv4/IPv6/hostname, or None if unusable."""
+    host = (value or "").strip()
+    if not host:
+        return None
     try:
-        # Проверяем импорт основного модуля
-        from epson_print_conf import EpsonPrinter
-        ok("epson_print_conf загружен")
+        ipaddress.ip_address(host)
+        return host
+    except ValueError:
+        pass
+    if all(part.isdigit() for part in host.split(".")) and "." in host:
+        return None
+    if "://" in host or "/" in host or " " in host or ";" in host:
+        return None
+    labels = host.split(".")
+    if not labels or len(host) > 253:
+        return None
+    for label in labels:
+        if not label or len(label) > 63:
+            return None
+        if label.startswith("-") or label.endswith("-"):
+            return None
+        if not all(c.isalnum() or c == "-" for c in label):
+            return None
+    return host
+
+def _venv_python():
+    candidates = [
+        os.path.join(SCRIPT_DIR, ".venv", "bin", "python3"),
+        os.path.join(SCRIPT_DIR, ".venv", "bin", "python"),
+        os.path.join(SCRIPT_DIR, "venv", "bin", "python3"),
+        os.path.join(SCRIPT_DIR, "venv", "bin", "python"),
+        os.path.join(SCRIPT_DIR, ".venv", "Scripts", "python.exe"),
+        os.path.join(SCRIPT_DIR, "venv", "Scripts", "python.exe"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return sys.executable
+
+def ensure_deps():
+    step("1", "Checking dependencies")
+    venv_python = _venv_python()
+    if venv_python != sys.executable:
+        ok("Virtual environment found")
+    else:
+        warn("venv not found, trying system Python")
+    try:
+        from epson_print_conf import EpsonPrinter  # noqa: F401
+        ok("epson_print_conf loaded")
         return True
     except ImportError as e:
-        warn(f"Не удалось импортировать: {e}")
-        info("Устанавливаю зависимости...")
-        ret = os.system(f"cd {SCRIPT_DIR} && source venv/bin/activate && pip install -r requirements.txt -q 2>/dev/null")
-        if ret == 0:
-            ok("Зависимости установлены")
+        warn("Import failed: " + str(e))
+        info("Installing requirements...")
+        req = os.path.join(SCRIPT_DIR, "requirements.txt")
+        ret = subprocess.run([venv_python, "-m", "pip", "install", "-r", req], cwd=SCRIPT_DIR)
+        if ret.returncode == 0:
+            ok("Dependencies installed")
             return True
-        else:
-            err("Не удалось установить зависимости")
-            err("Запустите вручную: cd epson_print_conf && source venv/bin/activate && pip install -r requirements.txt")
-            return False
+        err("Could not install dependencies")
+        err("Run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt")
+        return False
 
-# ─── Скачивание базы принтеров ───────────────────────────────────────────────
 def ensure_printer_db():
-    step("2", "База данных принтеров")
+    step("2", "Printer database")
     pickle_path = os.path.join(SCRIPT_DIR, "epson_print_conf.pickle")
     devices_xml = os.path.join(SCRIPT_DIR, "devices.xml")
-
     if os.path.exists(pickle_path) and os.path.getsize(pickle_path) > 100:
-        ok("Pickle-конфигурация уже существует")
+        ok("Pickle configuration already exists")
         return pickle_path
-
     if not os.path.exists(devices_xml):
-        info("Скачиваю базу принтеров devices.xml...")
-        url = "https://github.com/user-attachments/files/23294840/devices.xml"
-        ret = os.system(f'curl -sL -o "{devices_xml}" "{url}"')
-        if ret != 0 or not os.path.exists(devices_xml):
-            err("Не удалось скачать devices.xml")
-            return None
-        ok(f"Скачано: {os.path.getsize(devices_xml) // 1024} KB")
-    else:
-        ok("devices.xml уже существует")
-
-    info("Генерирую pickle-конфигурацию...")
-    cmd = f'cd "{SCRIPT_DIR}" && source venv/bin/activate 2>/dev/null; python3 parse_devices.py -c devices.xml -p epson_print_conf.pickle 2>&1'
-    ret = os.system(cmd)
-    if ret == 0 and os.path.exists(pickle_path):
-        ok("Конфигурация сгенерирована")
-        return pickle_path
-    else:
-        err("Ошибка генерации pickle")
+        err("devices.xml not found. Copy it from the repository and retry.")
         return None
+    ok("devices.xml already exists")
+    info("Generating pickle configuration...")
+    py = _venv_python()
+    parse_script = os.path.join(SCRIPT_DIR, "parse_devices.py")
+    ret = subprocess.run([py, parse_script, "-c", devices_xml, "-p", pickle_path], cwd=SCRIPT_DIR)
+    if ret.returncode == 0 and os.path.exists(pickle_path):
+        ok("Configuration generated")
+        return pickle_path
+    err("Pickle generation failed")
+    return None
 
-# ─── Поиск принтеров ────────────────────────────────────────────────────────
 def find_printers_network():
-    """Поиск принтеров в сети."""
     try:
         from find_printers import PrinterScanner
         scanner = PrinterScanner()
-        printers = run_with_spinner("Сканирую сеть...", scanner.get_all_printers)
-        return printers or []
+        return run_with_spinner("Scanning network...", scanner.get_all_printers) or []
     except Exception as e:
-        warn(f"Ошибка сканирования: {e}")
+        warn("Scan error: " + str(e))
         return []
 
 def find_printers_usb():
-    """Поиск USB-принтеров через system_profiler (macOS)."""
     usb_printers = []
     try:
-        result = subprocess.run(
-            ["system_profiler", "SPUSBDataType"],
-            capture_output=True, text=True, timeout=10
-        )
-        lines = result.stdout.split("\n")
+        result = subprocess.run(["system_profiler", "SPUSBDataType"], capture_output=True, text=True, timeout=10)
         current = None
-        for line in lines:
+        for line in result.stdout.split("\n"):
             stripped = line.strip()
             if "epson" in stripped.lower() and ":" in stripped:
                 current = {"name": stripped.rstrip(":").strip(), "type": "USB"}
@@ -212,272 +211,220 @@ def find_printers_usb():
     return usb_printers
 
 def discover_printers():
-    step("3", "Поиск принтеров")
+    step("3", "Looking for printers")
     all_printers = []
-
-    # USB
-    info("Поиск USB-принтеров...")
-    usb = find_printers_usb()
-    for p in usb:
-        ok(f"USB: {p['name']}")
+    info("USB printers...")
+    for p in find_printers_usb():
+        ok("USB: " + p["name"])
         all_printers.append({"source": "USB", "name": p["name"], "ip": None})
-
-    # Сеть
-    info("Поиск сетевых принтеров (может занять ~30 сек)...")
-    net = find_printers_network()
-    for p in net:
+    info("Network printers (may take ~30s)...")
+    for p in find_printers_network():
         name = p.get("name", "Unknown")
         ip = p.get("ip", "?")
-        ok(f"Сеть: {name} ({ip})")
+        ok("Network: " + str(name) + " (" + str(ip) + ")")
         all_printers.append({"source": "Network", "name": name, "ip": ip})
-
     return all_printers
 
-# ─── Главное меню операций ───────────────────────────────────────────────────
 def get_available_actions(printer):
-    """Возвращаем список доступных действий для принтера."""
     actions = []
     parm = printer.parm
     if not parm:
         return actions
-
-    actions.append(("📊  Полный статус принтера", "stats"))
-
+    actions.append(("Full printer status", "stats"))
     if "main_waste" in parm:
-        actions.append(("🔍  Показать уровень памперса (waste ink)", "show_waste"))
-
+        actions.append(("Show waste ink level", "show_waste"))
     if "raw_waste_reset" in parm or "main_waste" in parm:
-        actions.append((f"{C.GREEN}♻️   Сброс памперса (ПОСТОЯННЫЙ){C.RST}", "reset_waste"))
-
-    actions.append(("🔄  Временный сброс памперса", "temp_reset"))
-
+        actions.append(("PERMANENT waste-ink reset", "reset_waste"))
+    actions.append(("Temporary waste-ink reset", "temp_reset"))
     if "serial_number" in parm:
-        actions.append(("🔢  Показать серийный номер", "serial"))
-
+        actions.append(("Show serial number", "serial"))
     if "stats" in parm:
-        actions.append(("📈  Статистика принтера", "show_stats"))
-
-    actions.append(("🖨️   Тест дюз (печать)", "nozzle_check"))
-    actions.append(("🧹  Прочистка головки", "clean"))
-    actions.append(("💪  Усиленная прочистка", "power_clean"))
-    actions.append(("🌐  Открыть веб-интерфейс", "web"))
-
+        actions.append(("Printer statistics", "show_stats"))
+    actions.append(("Nozzle check print", "nozzle_check"))
+    actions.append(("Head cleaning", "clean"))
+    actions.append(("Power cleaning", "power_clean"))
+    actions.append(("Open web interface", "web"))
     return actions
 
 def execute_action(printer, action_id, model_name):
     hline()
     try:
         if action_id == "stats":
-            info("Получаю информацию о принтере...")
             import pprint
-            data = run_with_spinner("Запрашиваю данные...", printer.stats)
+            data = run_with_spinner("Requesting data...", printer.stats)
             if data:
                 print()
                 pprint.pprint(data, width=100, compact=True)
             else:
-                warn("Нет данных. Проверьте подключение.")
-
+                warn("No data. Check the connection.")
         elif action_id == "show_waste":
-            info("Чтение уровня памперса...")
-            levels = run_with_spinner("Запрашиваю...", printer.get_waste_ink_levels)
+            levels = run_with_spinner("Requesting...", printer.get_waste_ink_levels)
             if levels:
                 print()
                 for key, val in levels.items():
-                    label = key.replace("_", " ").title()
-                    bar_len = min(int(val / 2), 50)
-                    color = C.GREEN if val < 50 else C.YELLOW if val < 80 else C.RED
-                    bar = f"{color}{'█' * bar_len}{C.GRAY}{'░' * (50 - bar_len)}{C.RST}"
-                    print(f"    {label:.<30s} [{bar}] {color}{val}%{C.RST}")
+                    print("    " + key.replace("_", " ").title() + ": " + str(val) + "%")
                 print()
             else:
-                warn("Не удалось прочитать уровень памперса.")
-
+                warn("Could not read waste ink level.")
         elif action_id == "reset_waste":
-            warn(f"{C.BOLD}ВНИМАНИЕ! Это ПОСТОЯННЫЙ сброс счётчика памперса!{C.RST}")
-            warn("Физически памперс (абсорбер) тоже нужно промыть или заменить!")
-            print()
-            confirm = input(f"  {C.RED}▸{C.RST} Вы уверены? (да/нет): ").strip().lower()
-            if confirm in ("да", "yes", "y", "д"):
-                info("Сбрасываю счётчик памперса...")
-                result = run_with_spinner("Записываю в EEPROM...", printer.reset_waste_ink_levels)
+            warn("PERMANENT waste-ink counter reset!")
+            warn("Also rinse or replace the physical absorber.")
+            confirm = input("  Are you sure? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
+                result = run_with_spinner("Writing EEPROM...", printer.reset_waste_ink_levels)
                 if result:
-                    ok(f"{C.GREEN}{C.BOLD}Счётчик памперса успешно сброшен!{C.RST}")
-                    ok("Перезагрузите принтер для применения изменений.")
+                    ok("Waste-ink counter reset. Reboot the printer.")
                 else:
-                    err("Ошибка сброса. Проверьте подключение и конфигурацию.")
+                    err("Reset failed. Check connection and configuration.")
             else:
-                info("Операция отменена.")
-
+                info("Cancelled.")
         elif action_id == "temp_reset":
-            info("Выполняю временный сброс...")
-            result = run_with_spinner("Отправляю команду...", printer.temporary_reset_waste)
+            result = run_with_spinner("Sending command...", printer.temporary_reset_waste)
             if result:
-                ok("Временный сброс выполнен!")
-                warn("Сброс действует до перезагрузки принтера.")
+                ok("Temporary reset done (until reboot).")
             else:
-                err("Ошибка временного сброса.")
-
+                err("Temporary reset failed.")
         elif action_id == "serial":
-            info("Чтение серийного номера...")
-            sn = run_with_spinner("Запрашиваю...", printer.get_serial_number)
+            sn = run_with_spinner("Requesting...", printer.get_serial_number)
             if sn:
-                ok(f"Серийный номер: {C.BOLD}{C.WHITE}{sn}{C.RST}")
+                ok("Serial number: " + str(sn))
             else:
-                warn("Не удалось прочитать серийный номер.")
-
+                warn("Could not read serial number.")
         elif action_id == "show_stats":
-            info("Чтение статистики...")
-            data = run_with_spinner("Запрашиваю...", lambda: printer.get_stats())
+            data = run_with_spinner("Requesting...", lambda: printer.get_stats())
             if data:
                 print()
                 for key, val in data.items():
-                    print(f"    {C.CYAN}{key}{C.RST}: {val}")
+                    print("    " + str(key) + ": " + str(val))
                 print()
             else:
-                warn("Статистика недоступна.")
-
+                warn("Statistics unavailable.")
         elif action_id == "nozzle_check":
-            info("Отправляю тест дюз на печать...")
             result = printer.print_check_nozzles(type=0)
             if result:
-                ok("Тест дюз отправлен на печать.")
+                ok("Nozzle check sent to printer.")
             else:
-                err("Ошибка отправки теста дюз.")
-
+                err("Failed to send nozzle check.")
         elif action_id == "clean":
-            confirm = input(f"  {C.YELLOW}▸{C.RST} Начать прочистку? (да/нет): ").strip().lower()
-            if confirm in ("да", "yes", "y", "д"):
-                info("Запускаю прочистку...")
+            confirm = input("  Start cleaning? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
                 try:
                     result = printer.clean_nozzles(0)
                     if result:
-                        ok("Прочистка запущена.")
+                        ok("Cleaning started.")
                     else:
-                        err("Ошибка прочистки.")
+                        err("Cleaning failed.")
                 except Exception as e:
-                    err(f"Ошибка: {e}")
+                    err(str(e))
             else:
-                info("Отменено.")
-
+                info("Cancelled.")
         elif action_id == "power_clean":
-            warn("Усиленная прочистка расходует больше чернил!")
-            confirm = input(f"  {C.YELLOW}▸{C.RST} Продолжить? (да/нет): ").strip().lower()
-            if confirm in ("да", "yes", "y", "д"):
-                info("Запускаю усиленную прочистку...")
+            warn("Power cleaning uses more ink.")
+            confirm = input("  Continue? (yes/no): ").strip().lower()
+            if confirm in ("yes", "y", "da", "d"):
                 try:
                     result = printer.clean_nozzles(1)
                     if result:
-                        ok("Усиленная прочистка запущена.")
+                        ok("Power cleaning started.")
                     else:
-                        err("Ошибка усиленной прочистки.")
+                        err("Power cleaning failed.")
                 except Exception as e:
-                    err(f"Ошибка: {e}")
+                    err(str(e))
             else:
-                info("Отменено.")
-
+                info("Cancelled.")
         elif action_id == "web":
             try:
-                ip = printer.hostname
-                if ip:
-                    os.system(f'open "http://{ip}"')
-                    ok(f"Открываю http://{ip} в браузере...")
+                host = is_valid_printer_host(printer.hostname) if printer.hostname else None
+                if host:
+                    webbrowser.open("http://" + host)
+                    ok("Opening http://" + host)
                 else:
-                    err("IP-адрес принтера не задан.")
+                    err("Printer address is not set.")
             except Exception:
-                err("Не удалось открыть браузер.")
-
+                err("Could not open the browser.")
     except TimeoutError:
-        err("Таймаут при обращении к принтеру.")
+        err("Timeout talking to the printer.")
     except Exception as e:
-        err(f"Ошибка: {e}")
-
+        err(str(e))
     print()
-    input(f"  {C.GRAY}Нажмите Enter для продолжения...{C.RST}")
+    input("  Press Enter to continue...")
 
-# ─── Основной процесс ───────────────────────────────────────────────────────
+def _ask_printer_host(prompt):
+    host = is_valid_printer_host(input(prompt).strip())
+    if not host:
+        err("Invalid IP address or hostname.")
+        return None
+    return host
+
 def main():
     banner()
-
-    # 1. Зависимости
     if not ensure_deps():
         sys.exit(1)
-
     from epson_print_conf import EpsonPrinter
-
-    # 2. База принтеров
     pickle_path = ensure_printer_db()
     conf_dict = {}
     if pickle_path:
         try:
             with open(pickle_path, "rb") as f:
                 conf_dict = pickle.load(f)
-            ok(f"Загружено моделей: {len(conf_dict)}")
+            ok("Loaded models: " + str(len(conf_dict)))
         except Exception as e:
-            warn(f"Ошибка загрузки pickle: {e}")
-
-    # 3. Поиск принтеров или ручной ввод
-    step("3", "Подключение к принтеру")
+            warn("Pickle load error: " + str(e))
+    step("3", "Connect to printer")
     print()
     connect_opts = [
-        ("🔍  Автопоиск принтеров в сети и USB", "auto"),
-        ("📝  Ввести IP-адрес вручную", "manual"),
+        ("Auto-discover printers on network and USB", "auto"),
+        ("Enter IP address manually", "manual"),
     ]
-    choice = menu_choice(connect_opts, "Как подключиться к принтеру?")
+    choice = menu_choice(connect_opts, "How to connect?")
     if choice is None:
-        print(f"\n  {C.CYAN}До свидания!{C.RST}\n")
+        print("\n  Goodbye.\n")
         sys.exit(0)
-
     target_ip = None
     model_name = None
-
     if connect_opts[choice][1] == "auto":
         found = discover_printers()
         if not found:
-            warn("Принтеры не найдены автоматически.")
-            print()
-            target_ip = input(f"  {C.YELLOW}▸{C.RST} Введите IP-адрес принтера: ").strip()
+            warn("No printers found automatically.")
+            target_ip = _ask_printer_host("  Printer IP: ")
         elif len(found) == 1 and found[0]["ip"]:
             target_ip = found[0]["ip"]
             model_name = found[0].get("name")
-            ok(f"Используем: {model_name} ({target_ip})")
+            ok("Using: " + str(model_name) + " (" + str(target_ip) + ")")
         else:
             net_printers = [p for p in found if p["ip"]]
             if not net_printers:
-                warn("Найдены только USB-принтеры. Программа работает через сеть.")
-                target_ip = input(f"  {C.YELLOW}▸{C.RST} Введите IP-адрес принтера: ").strip()
+                warn("Only USB printers found. This tool talks over the network.")
+                target_ip = _ask_printer_host("  Printer IP: ")
             else:
-                opts = [(f"{p['name']} ({p['ip']})", p) for p in net_printers]
-                idx = menu_choice(opts, "Выберите принтер")
+                opts = [(str(p["name"]) + " (" + str(p["ip"]) + ")", p) for p in net_printers]
+                idx = menu_choice(opts, "Select a printer")
                 if idx is None:
                     sys.exit(0)
                 target_ip = net_printers[idx]["ip"]
                 model_name = net_printers[idx].get("name")
     else:
-        target_ip = input(f"\n  {C.YELLOW}▸{C.RST} IP-адрес принтера: ").strip()
-
+        target_ip = _ask_printer_host("\n  Printer IP: ")
     if not target_ip:
-        err("IP-адрес не указан.")
+        err("IP address not provided.")
         sys.exit(1)
-
-    # 4. Определение модели
-    step("4", "Определение модели принтера")
-    info(f"Подключаюсь к {target_ip}...")
-
-    # Создаём временный принтер для определения модели
+    target_ip = is_valid_printer_host(target_ip)
+    if not target_ip:
+        err("Invalid IP address or hostname.")
+        sys.exit(1)
+    step("4", "Detect printer model")
+    info("Connecting to " + target_ip + "...")
     temp_printer = EpsonPrinter(conf_dict=conf_dict, hostname=target_ip)
     try:
-        snmp_info = run_with_spinner("Запрашиваю модель...",
-            lambda: temp_printer.get_snmp_info("Model"))
+        snmp_info = run_with_spinner("Requesting model...", lambda: temp_printer.get_snmp_info("Model"))
         if snmp_info and "Model" in snmp_info:
             detected = snmp_info["Model"]
-            ok(f"Обнаружена модель: {C.BOLD}{C.WHITE}{detected}{C.RST}")
-            # Пытаемся найти короткое имя модели
+            ok("Detected model: " + str(detected))
             for m in temp_printer.valid_printers:
                 if m.lower() in detected.lower() or detected.lower().replace(" series", "").strip() in m.lower():
                     model_name = m
                     break
             if not model_name:
-                # Попробуем найти по части имени
                 parts = detected.replace("EPSON ", "").replace(" Series", "").strip().split()
                 for part in parts:
                     for m in temp_printer.valid_printers:
@@ -487,74 +434,50 @@ def main():
                     if model_name:
                         break
     except Exception as e:
-        warn(f"Не удалось определить модель автоматически: {e}")
-
+        warn("Could not auto-detect model: " + str(e))
     if not model_name:
-        warn("Модель не определена автоматически.")
-        print()
-        info("Доступные модели:")
+        warn("Model not auto-detected.")
         valid = sorted(temp_printer.valid_printers)
-        # Показываем в колонках
         cols = 4
         for i in range(0, len(valid), cols):
-            row = valid[i:i+cols]
-            print("    " + "  ".join(f"{C.CYAN}{m:<20s}{C.RST}" for m in row))
-        print()
-        model_name = input(f"  {C.YELLOW}▸{C.RST} Введите модель принтера: ").strip()
-
+            print("    " + "  ".join("{:<20s}".format(m) for m in valid[i:i + cols]))
+        model_name = input("  Printer model: ").strip()
     if not model_name:
-        err("Модель не указана.")
+        err("Model not provided.")
         sys.exit(1)
-
-    # 5. Подключаемся к принтеру
-    step("5", f"Подключение к {model_name}")
-    printer = EpsonPrinter(
-        conf_dict=conf_dict,
-        model=model_name,
-        hostname=target_ip
-    )
+    step("5", "Connecting to " + model_name)
+    printer = EpsonPrinter(conf_dict=conf_dict, model=model_name, hostname=target_ip)
     if not printer.parm:
-        err(f"Модель '{model_name}' не найдена в конфигурации.")
-        err("Попробуйте другое имя модели.")
+        err("Model '" + model_name + "' not found in configuration.")
         sys.exit(1)
-
-    ok(f"Принтер: {C.BOLD}{model_name}{C.RST}")
-    ok(f"Адрес:   {C.BOLD}{target_ip}{C.RST}")
-
-    # Проверяем соединение
+    ok("Printer: " + model_name)
+    ok("Address: " + target_ip)
     try:
-        sn = run_with_spinner("Проверяю связь...", printer.get_serial_number)
+        sn = run_with_spinner("Checking link...", printer.get_serial_number)
         if sn:
-            ok(f"Серийный номер: {C.BOLD}{sn}{C.RST}")
-            ok(f"{C.GREEN}Соединение установлено!{C.RST}")
+            ok("Serial number: " + str(sn))
+            ok("Connection established.")
         else:
-            warn("Серийный номер не получен, но попробуем продолжить.")
+            warn("Serial number not returned; continuing anyway.")
     except Exception:
-        warn("Проверка связи не удалась, попробуем продолжить.")
-
-    # 6. Главное меню
+        warn("Link check failed; continuing anyway.")
     while True:
         banner()
-        print(f"  {C.BOLD}Принтер:{C.RST} {C.CYAN}{model_name}{C.RST}  │  {C.BOLD}IP:{C.RST} {C.CYAN}{target_ip}{C.RST}")
+        print("  Printer: " + model_name + "  |  IP: " + target_ip)
         hline()
-
         actions = get_available_actions(printer)
         if not actions:
-            err("Нет доступных операций для этой модели.")
+            err("No operations available for this model.")
             break
-
-        idx = menu_choice(actions, "Доступные операции")
+        idx = menu_choice(actions, "Available operations")
         if idx is None:
-            print(f"\n  {C.CYAN}До свидания! 👋{C.RST}\n")
+            print("\n  Goodbye.\n")
             break
-
-        action_id = actions[idx][1]
-        execute_action(printer, action_id, model_name)
-
+        execute_action(printer, actions[idx][1], model_name)
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n\n  {C.CYAN}Прервано пользователем. До свидания!{C.RST}\n")
+        print("\n\n  Interrupted. Goodbye.\n")
         sys.exit(0)

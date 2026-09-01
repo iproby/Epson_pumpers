@@ -1,23 +1,23 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Update repo at runtime
-if [ ! -d /app/.git ]; then
-    git clone https://github.com/Ircama/epson_print_conf.git /app
-else
-    cd /app && git pull
-fi
+cd /app
 
 echo "Starting Xvfb virtual display..."
-Xvfb :99 -screen 0 1280x800x24 &
+Xvfb :99 -screen 0 1280x800x24 -ac +extension GLX +render -noreset &
 
-sleep 2
+# Wait until the X server is actually accepting connections
+for _ in $(seq 1 40); do
+    if xdpyinfo -display :99 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.25
+done
 
 echo "Creating minimal Fluxbox config..."
 mkdir -p ~/.fluxbox
 
-# Create minimal init file
-cat > ~/.fluxbox/init <<'EOF'
+cat > ~/.fluxbox/init <<'FB'
 # Minimal Fluxbox config for Docker/Xvfb
 session.screen0.toolbar.visible: false
 session.screen0.slit.placement: BottomRight
@@ -27,17 +27,21 @@ session.screen0.workspaces: 1
 session.screen0.focusModel: sloppy
 session.keyFile: ~/.fluxbox/keys
 session.appsFile: ~/.fluxbox/apps
-EOF
+FB
 
 echo "Starting Fluxbox window manager..."
-fluxbox -log ~/.fluxbox/fb.log 2>&1 &  # Redirect logs to a file instead of the console
+fluxbox -log ~/.fluxbox/fb.log >/dev/null 2>&1 &
 
-sleep 2
+sleep 1
 
-echo "Starting VNC server..."
-x11vnc -display :99 -forever -nopw -bg -rfbport 5990 -ncache 10 -ncache_cr &
+VNC_PASSWORD="${VNC_PASSWORD:-1234}"
+mkdir -p ~/.vnc
+x11vnc -storepasswd "$VNC_PASSWORD" ~/.vnc/passwd >/dev/null
 
-sleep 2
+echo "Starting VNC server on TCP 5990 (VNC display :90)..."
+x11vnc -display :99 -forever -rfbauth ~/.vnc/passwd -bg -rfbport 5990 -ncache 10 -ncache_cr
 
-echo "Starting Tkinter application. Open your VNC client and connect to localhost:90..."
+echo "Starting Tkinter application."
+echo "Connect a VNC client to localhost:90 (port 5990)."
+echo "Password is VNC_PASSWORD (default 1234). Override with docker run -e VNC_PASSWORD=..."
 exec python3 ui.py
