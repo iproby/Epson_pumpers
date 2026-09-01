@@ -3771,7 +3771,7 @@ Web site: https://github.com/Ircama/epson_print_conf
                         tk.END, f" Found {len(printers)} printers:\n"
                     )
                     for printer in printers:
-                        if printers[0]['name']:
+                        if printer['name']:
                             self.status_text.insert(tk.END, '[INFO]', "info")
                             self.status_text.insert(
                                 tk.END,
