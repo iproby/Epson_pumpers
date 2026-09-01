@@ -1,0 +1,41 @@
+name: apply-ui-printer-name-fix
+
+on:
+  push:
+    branches: [fix/ui-printer-name]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch ui.py and remove this workflow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ui.py')
+          text = p.read_text(encoding='utf-8')
+          old = """                    for printer in printers:\n                        if printers[0]['name']:"""
+          new = """                    for printer in printers:\n                        if printer['name']:"""
+          if old not in text:
+              print('pattern missing or already patched')
+          else:
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print('patched ui.py')
+          wf = Path('.github/workflows/apply-ui-printer-name-fix.yml')
+          if wf.exists():
+              wf.unlink()
+              print('removed one-shot workflow')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ui.py .github/workflows/apply-ui-printer-name-fix.yml || true
+          if git diff --cached --quiet; then
+            echo 'nothing to commit'
+            exit 0
+          fi
+          git commit -m "Fix multi-printer UI listing using current printer name"
+          git push
