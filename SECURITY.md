@@ -4,4 +4,4 @@ Security bugs will be taken seriously and, if confirmed upon investigation, a ne
 
 ## Reporting a Security Bug
 
-The way to report a security bug is to open an [issue](https://github.com/Ircama/epson_print_conf/issues) including related information (e.g., reproduction steps, version).
+The way to report a security bug is to open an [issue](https://github.com/iproby/Epson_pumpers/issues) including related information (e.g., reproduction steps, version).
