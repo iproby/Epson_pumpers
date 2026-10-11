@@ -170,3 +170,5 @@ devices*.xml
 .console_history
 
 lpr_jobs/
+release_assets/
+release_staging/
