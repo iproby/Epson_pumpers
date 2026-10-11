@@ -340,7 +340,8 @@ class EpsonPrinterApp(ctk.CTk):
 
                 self.after(0, _on_success)
             except Exception as e:
-                self.after(0, lambda: self._on_connect_failed(str(e)))
+                err_msg = str(e)
+                self.after(0, lambda msg=err_msg: self._on_connect_failed(msg))
 
         self.run_threaded(_connect)
 
