@@ -12,6 +12,14 @@ import subprocess
 import sys
 import zipfile
 
+# Ensure utf-8 stdout encoding on Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 
 def ensure_icons(project_root: str):
     """Ensure assets/app_icon.ico and app_icon.icns exist before building."""
@@ -80,7 +88,7 @@ def build():
         print(f"Build failed with exit code {ret}", file=sys.stderr)
         sys.exit(ret)
 
-    print("\n✓ PyInstaller build succeeded!")
+    print("\n[OK] PyInstaller build succeeded!")
 
     # Post-packaging steps
     if sys.platform == "darwin":
@@ -91,7 +99,7 @@ def build():
             print(f"Archiving macOS app bundle to {zip_dest}...")
             cmd_zip = ["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app_path, zip_dest]
             subprocess.call(cmd_zip)
-            print(f"✓ Created {zip_dest}")
+            print(f"[OK] Created {zip_dest}")
 
             # 2. Create DMG Disk Image if hdiutil is present
             if shutil.which("hdiutil"):
@@ -120,7 +128,7 @@ def build():
                 ]
                 subprocess.check_call(cmd_dmg)
                 shutil.rmtree(staging_dir)
-                print(f"✓ Created DMG: {dmg_dest}")
+                print(f"[OK] Created DMG: {dmg_dest}")
 
     elif sys.platform.startswith("win"):
         exe_path = os.path.join(dist_dir, "epson_print_conf.exe")
@@ -129,7 +137,7 @@ def build():
             print(f"Archiving Windows executable to {zip_dest}...")
             with zipfile.ZipFile(zip_dest, "w", zipfile.ZIP_DEFLATED) as zf:
                 zf.write(exe_path, arcname="epson_print_conf.exe")
-            print(f"✓ Created {zip_dest}")
+            print(f"[OK] Created {zip_dest}")
 
     elif sys.platform.startswith("linux"):
         bin_path = os.path.join(dist_dir, "epson_print_conf")
@@ -139,7 +147,7 @@ def build():
             import tarfile
             with tarfile.open(tar_dest, "w:gz") as tar:
                 tar.add(bin_path, arcname="epson_print_conf")
-            print(f"✓ Created {tar_dest}")
+            print(f"[OK] Created {tar_dest}")
 
     print("\nPackage generation complete! Output files are located in 'dist/'.")
 
