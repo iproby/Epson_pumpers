@@ -1,6 +1,9 @@
 pyyaml
 pysnmp>=7.1.20
 pysnmp_sync_adapter>=1.0.8
+customtkinter>=5.2.0
+darkdetect
+pillow
 tkcalendar
 pyperclip
 black

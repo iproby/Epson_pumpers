@@ -110,14 +110,6 @@ The *epson_print_conf.zip* archive in the [Releases](https://github.com/Ircama/e
 
 ### Running the GUI with Python
 
-For a one-command local start, run:
-
-```bash
-./run.sh
-```
-
-The script creates `.venv` when needed, installs `requirements.txt`, and starts `ui.py`. You can pass GUI options through it, for example `./run.sh -m XP-205 -a 192.168.1.50`.
-
 Run *ui.py* as in this example:
 
 ```

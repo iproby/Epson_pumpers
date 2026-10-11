@@ -13,4 +13,4 @@ fi
 "$VENV_DIR/bin/python" -m pip install --upgrade pip
 "$VENV_DIR/bin/python" -m pip install -r requirements.txt
 
-exec "$VENV_DIR/bin/python" ui.py "$@"
+exec "$VENV_DIR/bin/python" main.py "$@"
